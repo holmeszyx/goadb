@@ -1,6 +1,7 @@
 package goadb
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -8,8 +9,21 @@ import (
 	"strings"
 )
 
+type AdbError struct {
+	msg string
+}
+
+func (a *AdbError) Error() string {
+	return a.msg
+}
+
+func newAdbError(msg string) *AdbError {
+	return &AdbError{msg: msg}
+}
+
 const (
 	Unknown string = "Unknown"
+	Empty   string = ""
 )
 
 var (
@@ -118,7 +132,8 @@ func (g *GoAdb) Devices() []*Device {
 
 // Install Apk
 //  adb install [-l] [-r] [-d] [-s]
-func (g *GoAdb) Install(apk string, reinstall bool, forward bool, downgrade bool, toSd bool) (string, bool) {
+func (g *GoAdb) Install(apk string, reinstall bool,
+	forward bool, downgrade bool, toSd bool) (string, error) {
 	var args string
 	if reinstall {
 		args += " -r"
@@ -135,58 +150,88 @@ func (g *GoAdb) Install(apk string, reinstall bool, forward bool, downgrade bool
 
 	args += " " + apk
 
-	result, isError := g.runAdb("install" + args)
+	result, isError := g.runAdbCmd("install" + args)
 
 	return result, isError
 }
 
 // Uninstall package
 //   adb uninstall [-k] <package> - remove this app package from the device
-func (g *GoAdb) Uninstall(pkg string, keepData bool) (string, bool) {
+func (g *GoAdb) Uninstall(pkg string, keepData bool) (string, error) {
 	var args string
 	if keepData {
 		args += " -k"
 	}
 
 	args += " " + pkg
-	result, isError := g.runAdb("uninstall" + args)
+	result, isError := g.runAdbCmd("uninstall" + args)
 	return result, isError
 }
 
-// run a adb cmd
-// get output
-// When exec error, isError = true
-func (g *GoAdb) runAdb(cmd string) (string, bool) {
-	cmdArgs := strings.Split(cmd, " ")
-	adbExec := exec.Command(g.adbPath, cmdArgs...)
+// Run command by Adb shell
+// adb shell $cmd
+func (g *GoAdb) ShellCmd(cmd string) (string, error) {
+	result, err := g.runAdbCmd("shell " + cmd)
+	return result, err
+}
 
-	isError := false
+// Push file to phone
+// src is the file path on compute, and dst is the path in phone
+func (g *GoAdb) Push(src string, dst string) error {
+	args := []string{
+		"push",
+		src,
+		dst,
+	}
+	_, err := g.runAdb(args...)
+	return err
+}
+
+// Pull file from phone
+// src is the path in phone, and dst is the path on compute
+func (g *GoAdb) Pull(src string, dst string) error {
+	_, err := g.runAdb("pull", src, dst)
+	return err
+}
+
+// run adb cmd string
+func (g *GoAdb) runAdbCmd(cmd string) (string, error) {
+	cmdArgs := strings.Split(cmd, " ")
+	return g.runAdb(cmdArgs...)
+}
+
+// run a adb cmd which is a slice or array
+// get output
+// When exec error, error != nil
+func (g *GoAdb) runAdb(cmd ...string) (string, error) {
+	adbExec := exec.Command(g.adbPath, cmd...)
 
 	in, _ := adbExec.StdinPipe()
-	error, _ := adbExec.StderrPipe()
+	errorOut, _ := adbExec.StderrPipe()
 	out, _ := adbExec.StdoutPipe()
 	defer closeIO(in)
-	defer closeIO(error)
+	defer closeIO(errorOut)
 	defer closeIO(out)
 
 	if err := adbExec.Start(); err != nil {
-		panic("start adb process error")
+		return Empty, errors.New("start adb process error")
 	}
 
 	outData, _ := ioutil.ReadAll(out)
-	errorData, _ := ioutil.ReadAll(error)
+	errorData, _ := ioutil.ReadAll(errorOut)
+
+	var adbError error = nil
 
 	if err := adbExec.Wait(); err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
-			fmt.Println("adb error return")
+			adbError = newAdbError("adb return error")
 			outData = errorData
-			isError = true
 		} else {
-			panic("wait adb process error")
+			return Empty, errors.New("start adb process error")
 		}
 	}
 
-	return string(outData), isError
+	return string(outData), adbError
 }
 
 // close a stream
