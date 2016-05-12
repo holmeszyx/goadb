@@ -25,6 +25,8 @@ func newAdbError(msg string) *AdbError {
 const (
 	Unknown string = "Unknown"
 	Empty   string = ""
+	MODE_RECOVERY = "recovery"
+	MODE_BOOTLOADER = "bootloader"
 )
 
 var (
@@ -214,6 +216,18 @@ func (g *GoAdb) KillServer() (string, error) {
 // start-server
 func (g *GoAdb) StartServer() (string, error) {
 	return g.runAdb("start-server")
+}
+
+// Reboot phone
+func (g *GoAdb) Reboot() (string, error) {
+	return g.runAdb("reboot")
+}
+
+// RebootTo like command 
+// "reboot [bootloader|recovery]" 
+// "to" can be MODE_BOOTLOADER or MODE_RECOVERY
+func (g *GoAdb) RebootTo(to string) (string, error) {
+	return g.runAdb("reboot", to)	
 }
 
 // run adb cmd string
