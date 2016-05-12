@@ -11,7 +11,7 @@ See docs on [Godoc](https://godoc.org/github.com/holmeszyx/goadb)
 Usage
 ======
 
-```
+```go
 adb, err := goadb.NewAdbWithEnv()
 if err != nil {
     return
