@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -63,6 +64,17 @@ func NewGoAdb(adbPath string) *GoAdb {
 	adb.adbPath = adbPath
 	adb.init()
 	return adb
+}
+
+// Create a Adb, auto detact adb path which in Env
+func NewGoAdbWithEnv() (*GoAdb, error) {
+	androiHome := os.Getenv("ANDROID_HOME")
+	if androiHome != "" {
+		adbpath := androiHome + "/platform-tools/adb"
+		return NewGoAdb(adbpath), nil
+	} else {
+		return nil, errors.New("ANDROID_HOME not exists in Env")
+	}
 }
 
 type GoAdb struct {
@@ -192,6 +204,16 @@ func (g *GoAdb) Push(src string, dst string) error {
 func (g *GoAdb) Pull(src string, dst string) error {
 	_, err := g.runAdb("pull", src, dst)
 	return err
+}
+
+// Kill-server
+func (g *GoAdb) KillServer() (string, error) {
+	return g.runAdb("kill-server")
+}
+
+// start-server
+func (g *GoAdb) StartServer() (string, error) {
+	return g.runAdb("start-server")
 }
 
 // run adb cmd string
