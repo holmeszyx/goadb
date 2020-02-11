@@ -23,10 +23,10 @@ func newAdbError(msg string) *AdbError {
 }
 
 const (
-	Unknown string = "Unknown"
-	Empty   string = ""
-	MODE_RECOVERY = "recovery"
-	MODE_BOOTLOADER = "bootloader"
+	Unknown         string = "Unknown"
+	Empty           string = ""
+	MODE_RECOVERY          = "recovery"
+	MODE_BOOTLOADER        = "bootloader"
 )
 
 var (
@@ -162,7 +162,7 @@ func (g *GoAdb) Install(apk string, reinstall bool,
 		args += " -s"
 	}
 
-	args += " " + apk
+	args += " " + safeArg(strings.TrimSpace(apk))
 
 	result, isError := g.runAdbCmd("install" + args)
 
@@ -177,7 +177,7 @@ func (g *GoAdb) Uninstall(pkg string, keepData bool) (string, error) {
 		args += " -k"
 	}
 
-	args += " " + pkg
+	args += " " + safeArg(strings.TrimSpace(pkg))
 	result, isError := g.runAdbCmd("uninstall" + args)
 	return result, isError
 }
@@ -185,6 +185,7 @@ func (g *GoAdb) Uninstall(pkg string, keepData bool) (string, error) {
 // Run command by Adb shell
 // adb shell $cmd
 func (g *GoAdb) ShellCmd(cmd string) (string, error) {
+	cmd = safeArg(strings.TrimSpace(cmd))
 	result, err := g.runAdbCmd("shell " + cmd)
 	return result, err
 }
@@ -223,16 +224,18 @@ func (g *GoAdb) Reboot() (string, error) {
 	return g.runAdb("reboot")
 }
 
-// RebootTo like command 
-// "reboot [bootloader|recovery]" 
+// RebootTo like command
+// "reboot [bootloader|recovery]"
 // "to" can be MODE_BOOTLOADER or MODE_RECOVERY
 func (g *GoAdb) RebootTo(to string) (string, error) {
-	return g.runAdb("reboot", to)	
+	return g.runAdb("reboot", to)
 }
 
 // run adb cmd string
+// Use "\ " instead of " " like shell
 func (g *GoAdb) runAdbCmd(cmd string) (string, error) {
-	cmdArgs := strings.Split(cmd, " ")
+	// cmdArgs := strings.Split(cmd, " ")
+	cmdArgs := splitCmdAgrs(cmd)
 	return g.runAdb(cmdArgs...)
 }
 
