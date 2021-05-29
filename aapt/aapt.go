@@ -8,11 +8,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 )
 
 const (
 	// XML_Manifest is the useful name of "AndroidManifest.xml"
 	XML_Manifest = "AndroidManifest.xml"
+	// AAPT executeable bin name
+	AAPT_EXEC_NAME = "aapt2"
 )
 
 /*
@@ -71,7 +74,12 @@ func FindLastAaptPath() (string, error) {
 				return last
 			}
 			lastTools := findLast(files)
-			return filepath.Join(toolsDir, lastTools.Name(), "aapt"), nil
+
+			aaptExec := AAPT_EXEC_NAME
+			if runtime.GOOS == "windows" {
+				aaptExec = aaptExec + ".exe"
+			}
+			return filepath.Join(toolsDir, lastTools.Name(), aaptExec), nil
 		}
 
 		return "", errors.New("No build-tools found in " + androiHome)
@@ -87,7 +95,7 @@ type LineFilterFunc func(line []byte) bool
 // If filter not nil, can use it to process ever line the aapt return, if filter return false
 // the line process will be broken, and DumpXmlTrees will be return
 func (a *Aapt) DumpXmlTrees(apk string, xmlname string, filter LineFilterFunc) (result string, err error) {
-	cmd := exec.Command(a.appt, "d", "xmltree", apk, xmlname)
+	cmd := exec.Command(a.appt, "dump", "xmltree", "--file", xmlname, apk)
 	return runCmd(cmd, filter)
 }
 
@@ -96,7 +104,7 @@ func (a *Aapt) DumpXmlTrees(apk string, xmlname string, filter LineFilterFunc) (
 // If filter not nil, can use it to process ever line the aapt return, if filter return false
 // the line process will be broken, and DumpBadging will be return
 func (a *Aapt) DumpBadging(apk string, filter LineFilterFunc) (result string, err error) {
-	cmd := exec.Command(a.appt, "d", "badging", apk)
+	cmd := exec.Command(a.appt, "dump", "badging", "--include-meta-data", apk)
 	return runCmd(cmd, filter)
 }
 
